@@ -1,0 +1,58 @@
+plugins {
+    id 'java'
+    id 'com.google.protobuf' version '0.9.5'
+}
+
+group = 'com.thekim123'
+version = '0.0.1-SNAPSHOT'
+description = 'job-client'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+def grpcVersion = '1.66.0'
+def protobufVersion = '3.25.3'
+def lombokVersion = "1.18.34"
+
+ext {
+    set('springGrpcVersion', "1.0.1")
+}
+
+dependencies {
+    implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation "com.google.protobuf:protobuf-java:${protobufVersion}"
+
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:${protobufVersion}" }
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.plugins { grpc {} }
+        }
+    }
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
