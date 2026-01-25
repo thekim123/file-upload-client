@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package jobstream.v1;
+
+option go_package = "com.thekim123/jobstream/server/gen/jobstream;jobstream";
+
+
+service JobService {
+  rpc StartJob(StartJobRequest) returns (stream JobEvent);
+  rpc CancelJob(CancelJobRequest) returns (CancelJobResponse);
+  rpc RunJob(stream ClientCommand) returns (stream JobEvent);
+}
+
+message ClientCommand {
+  string job_id =1;
+  oneof cmd{
+    Start start = 10;
+    Pause pause = 11;
+    Resume resume = 12;
+    Cancel cancel = 13;
+    SetSpeed set_speed = 14;
+    SetLogLevel set_log_level = 15;
+  }
+}
+
+message Start {
+  string job_type = 1;
+  string payload = 2;
+}
+
+message Pause {}
+message Resume {}
+message Cancel {string reason =1;}
+message SetSpeed {int32 events_per_sec = 1;}
+message SetLogLevel {int32 level=1;}
+
+message State {
+  enum Kind { RUNNING=0; PAUSED=1; CANCELING=2;}
+  Kind kind = 1;
+  string message = 2;
+}
+
+message StartJobRequest {
+  string job_type = 1;
+  string payload = 2;
+}
+
+message CancelJobRequest {
+  string job_id = 1;
+}
+
+message CancelJobResponse {
+  bool accepted = 1;
+}
+
+message JobEvent {
+  string job_id = 1;
+  int64 seq = 2;
+  int64 timestamp_ms =3;
+
+  oneof event {
+    Progress progress =10;
+    LogLine log = 11;
+    State state = 12;
+    Completed completed  = 13;
+    Failed failed = 14;
+    Canceled canceled = 15;
+  }
+}
+
+message Progress {int32 percent =1;}
+message LogLine { string message =1;}
+message Completed {string result = 1;}
+message Failed {string error= 1;}
+message Canceled { string reason =1;}
+
