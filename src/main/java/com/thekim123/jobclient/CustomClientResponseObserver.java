@@ -3,17 +3,20 @@ package com.thekim123.jobclient;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import jobstream.v1.Jobstream;
+import lombok.Getter;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-public class CustomClientResponseObserver implements ClientResponseObserver<Jobstream.StartJobRequest, Jobstream.JobEvent> {
+@Getter
+public class CustomClientResponseObserver implements ClientResponseObserver<Jobstream.ClientCommand, Jobstream.JobEvent> {
 
-    private volatile ClientCallStreamObserver<Jobstream.StartJobRequest> requestStreamRef;
-    private final AtomicReference<String> jobIdRef = new AtomicReference<>(null);
+    private final AtomicReference<Jobstream.ClientCommand> call = new AtomicReference<>(null);
+    AtomicReference<ClientCallStreamObserver<Jobstream.ClientCommand>> callRef = new AtomicReference<>();
+    AtomicReference<String> jobIdRef = new AtomicReference<>(null);
 
     @Override
-    public void beforeStart(ClientCallStreamObserver<Jobstream.StartJobRequest> requestStream) {
-        requestStreamRef = requestStream;
+    public void beforeStart(ClientCallStreamObserver<Jobstream.ClientCommand> requestStream) {
+        callRef.set(requestStream);
 //        requestStream.disableAutoInboundFlowControl(); // (선택) 흐름제어 직접 하고 싶으면
 //        requestStream.request(3);
     }
@@ -50,13 +53,5 @@ public class CustomClientResponseObserver implements ClientResponseObserver<Jobs
     @Override
     public void onCompleted() {
         System.out.println("stream completed");
-    }
-
-    public ClientCallStreamObserver<Jobstream.StartJobRequest> getRequestStreamRef() {
-        return requestStreamRef;
-    }
-
-    public String getJobIdRef() {
-        return this.jobIdRef.get();
     }
 }
