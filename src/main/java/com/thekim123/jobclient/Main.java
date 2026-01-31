@@ -1,6 +1,10 @@
 package com.thekim123.jobclient;
 
 
+import com.thekim123.jobclient.control.GrpcJobControl;
+import com.thekim123.jobclient.control.JobControl;
+import com.thekim123.jobclient.router.CommandRouter;
+import com.thekim123.jobclient.router.Router;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -44,82 +48,12 @@ public class Main {
                   q            -> close send (onCompleted)
                 """);
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        CommandRouter router = Router.buildRouter();
+        JobControl jobControl = new GrpcJobControl(requestStream, observer);
         while (true) {
             String line = br.readLine();
             if (line == null) break;
-            line = line.trim();
-            if (line.isEmpty()) continue;
-
-            if (line.equalsIgnoreCase("q")) {
-                observer.onCompleted();
-                break;
-            }
-
-            if (line.equalsIgnoreCase("x")) {
-                var call = observer.getCall().get();
-//                call.cancel("client hard cancel", null);
-                break;
-            }
-
-            if (line.equalsIgnoreCase("p")) {
-                requestStream.onNext(Jobstream.ClientCommand.newBuilder()
-                        .setJobId(observer.getJobIdRef() == null ? "" : observer.getJobIdRef().get())
-                        .setPause(Jobstream.Pause.newBuilder().build())
-                        .build());
-                continue;
-            }
-
-            if (line.equals("r")) {
-                requestStream.onNext(Jobstream.ClientCommand.newBuilder()
-                        .setJobId(observer.getJobIdRef().get() == null ? "" : observer.getJobIdRef().get())
-                        .setResume(Jobstream.Resume.newBuilder().build())
-                        .build());
-                continue;
-            }
-
-            if (line.startsWith("c")) {
-                String reason = line.length() > 1 ? line.substring(1).trim() : "user requested";
-                requestStream.onNext(Jobstream.ClientCommand.newBuilder()
-                        .setJobId(observer.getJobIdRef().get() == null ? "" : observer.getJobIdRef().get())
-                        .setCancel(Jobstream.Cancel.newBuilder().setReason(reason).build())
-                        .build());
-                continue;
-            }
-
-            if (line.startsWith("s ")) {
-                int n = Integer.parseInt(line.substring(2).trim());
-                requestStream.onNext(Jobstream.ClientCommand.newBuilder()
-                        .setJobId(observer.getJobIdRef().get() == null ? "" : observer.getJobIdRef().get())
-                        .setSetSpeed(Jobstream.SetSpeed.newBuilder().setEventsPerSec(n).build())
-                        .build());
-                continue;
-            }
-
-            if (line.startsWith("l ")) {
-                int lv = Integer.parseInt(line.substring(2).trim());
-                requestStream.onNext(Jobstream.ClientCommand.newBuilder()
-                        .setJobId(observer.getJobIdRef().get() == null ? "" : observer.getJobIdRef().get())
-                        .setSetLogLevel(Jobstream.SetLogLevel.newBuilder().setLevel(lv).build())
-                        .build());
-                continue;
-            }
-
-            if (line.equalsIgnoreCase("c")) {
-                String jobId = observer.getJobIdRef().get();
-                if (jobId == null) {
-                    System.out.println("jobId not received yet");
-                    continue;
-                }
-
-                Jobstream.CancelJobRequest cancelRequest = Jobstream.CancelJobRequest.newBuilder()
-                        .setJobId(jobId)
-                        .build();
-                JobServiceGrpc.JobServiceBlockingStub blockingStub =
-                        JobServiceGrpc.newBlockingStub(channel);
-                Jobstream.CancelJobResponse response = blockingStub.cancelJob(cancelRequest);
-                System.out.println("CancelJob Accepted: " + response.getAccepted());
-            }
-
+            router.dispatch(jobControl, line);
         }
 
         Thread.sleep(1000);
